@@ -2,7 +2,7 @@ k,v1,v2
 package,Edit,v5.1.0
 from,github.com/io-core,whenever
 license,PROJECTOBERON,JG PDR NW MS CP
-r,[core]/Oberon,v5.0.0
+r,[core]/Oberon,v5.1.0
 r,[core]/Files,v5.0.0
 r,[core]/Modules,v5.0.0
 p,TextFrames.Mod,87a7af3a86375505e1594382f934ce0662ed65a5779831f9ae92b0e3be59faed
