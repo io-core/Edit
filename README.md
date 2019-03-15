@@ -3,7 +3,7 @@ io-core Edit package containing Fonts.Mod, Texts.Mod, TextFrames.Mod and Edit.Mo
 
 This package requires the inner core of Oberon as represented by the Modules and Files packages.
 
-In addition this package requires the Oberon package which provides the display, the keyboard and mouse, viewer functionality, etc.
+In addition this package has a mutual dependency on the Oberon package which provides the display, the keyboard and mouse, viewer functionality, etc.
 
 ### License of the Project Oberon files
 
