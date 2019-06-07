@@ -1,6 +1,7 @@
 MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
-                   (*CP 12.2018 changed to adopt NL instead of CR *)
+                   (*CP 12.2018 changed to adopt NL instead of CR*)
                    (*MS 1.2019 adapted for Unicode*)
+                   (*CP 6.2019 Shift-Enter for Command Invocation*)
 
   IMPORT Modules, Input, Display, Viewers, Fonts, Texts, Oberon, MenuViewers;
 
@@ -640,7 +641,9 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       IF F.hasSel THEN
         NEW(TBuf); Texts.OpenBuf(TBuf); Texts.Delete(F.text, F.selbeg.pos, F.selend.pos, TBuf)
       END
-    ELSIF (20H <= codepoint) & (codepoint <= 010FFFFH) OR (codepoint = ORD(CR)) OR (codepoint = ORD(NL)) OR (codepoint = ORD(TAB)) THEN
+    ELSIF codepoint = ORD(CR) THEN (*Shift-Enter a.k.a. CR*)
+      LED(13)
+    ELSIF (20H <= codepoint) & (codepoint <= 010FFFFH) OR (codepoint = ORD(NL)) OR (codepoint = ORD(TAB)) THEN
       KW.fnt := fnt; KW.col := col; KW.voff := voff; Texts.WriteUnicode(KW, codepoint);
       Texts.Insert(F.text, F.carloc.pos, KW.buf);
       SetCaret(F, F.carloc.pos + Texts.UnicodeWidth(codepoint))
