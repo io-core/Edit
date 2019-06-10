@@ -620,6 +620,10 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
 
   PROCEDURE Write* (F: Frame; codepoint: INTEGER; fnt: Fonts.Font; col, voff: INTEGER);
     VAR buf: Texts.Buffer; R: Texts.Reader; charlen: INTEGER; ch: CHAR;
+      loc: Location; keysum: SET;
+      patadr, bpos, pos, lim: LONGINT;
+      bx, ex, ox, dx, u, v, w, h: INTEGER;
+
   BEGIN (*F.hasCar*)
     IF codepoint = ORD(BS) THEN  (*backspace*)
       IF F.carloc.pos > F.org THEN
@@ -642,7 +646,19 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
         NEW(TBuf); Texts.OpenBuf(TBuf); Texts.Delete(F.text, F.selbeg.pos, F.selend.pos, TBuf)
       END
     ELSIF codepoint = ORD(CR) THEN (*Shift-Enter a.k.a. CR*)
-      LED(13)
+      IF F.trailer.next # F.trailer THEN
+        LocateLine(F, F.carloc.y - F.Y, loc);
+        lim := loc.org + loc.lin.len - 1;
+        bpos := loc.org; bx := F.left;
+        pos := loc.org; ox := F.left;
+        Texts.OpenReader(R, F.text, loc.org); Texts.ReadUnicode(R, nextCodepoint);
+        WHILE (pos # lim) & (nextCodepoint <= ORD(" ")) DO (*scan gap*)
+          Fonts.GetUniPat(R.fnt, nextCodepoint, dx, u, v, w, h, patadr);
+          INC(pos, Texts.UnicodeWidth(nextCodepoint)); ox := ox + dx; Texts.ReadUnicode(R, nextCodepoint)
+        END;
+      ELSE pos := 0  (*<----*)
+      END;
+      IF (pos >= 0) THEN Call(F, pos, 2 IN keysum) END
     ELSIF (20H <= codepoint) & (codepoint <= 010FFFFH) OR (codepoint = ORD(NL)) OR (codepoint = ORD(TAB)) THEN
       KW.fnt := fnt; KW.col := col; KW.voff := voff; Texts.WriteUnicode(KW, codepoint);
       Texts.Insert(F.text, F.carloc.pos, KW.buf);

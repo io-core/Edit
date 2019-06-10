@@ -1,11 +1,11 @@
 k,v1,v2
-package,Edit,v5.1.0
+package,Edit,v5.1.1
 from,github.com/io-core,whenever
 license,PROJECTOBERON,JG PDR NW MS CP
 r,[io-core]/Oberon,v5.1.0
 r,[core]/Files,v5.0.0
 r,[core]/Modules,v5.0.0
-p,TextFrames.Mod,87a7af3a86375505e1594382f934ce0662ed65a5779831f9ae92b0e3be59faed
-p,Texts.Mod,87519f6f63b9da5a219d707ba66dfaac7595d9f07096f81fe60f26f2f9f994ca
-p,Edit.Mod,45cfa1a7b7fa049986702472fa45b562ce42ba7fd32759a630e55d0425fd1455
-p,Fonts.Mod,84a2e819cf9c3455746956d1fa2308387620e7ff577ebf93f55af09b97e67851
+p,TextFrames.Mod,
+p,Texts.Mod,
+p,Edit.Mod,
+p,Fonts.Mod,
