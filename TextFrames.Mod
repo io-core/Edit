@@ -645,6 +645,8 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       IF F.hasSel THEN
         NEW(TBuf); Texts.OpenBuf(TBuf); Texts.Delete(F.text, F.selbeg.pos, F.selend.pos, TBuf)
       END
+    ELSIF codepoint = ORD(1CX) THEN (*f12 - Save*)
+      LED(99)
     ELSIF codepoint = ORD(CR) THEN (*Shift-Enter a.k.a. CR*)
       IF F.trailer.next # F.trailer THEN
         LocateLine(F, F.carloc.y - F.Y, loc);
