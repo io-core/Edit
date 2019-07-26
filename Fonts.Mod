@@ -470,12 +470,12 @@ BEGIN F := root;
             Files.Set(R, f, tt.BDFACCELERATORS.offset+24); 
                                   (* The following is probably not a correct mapping*)
             ReadBeInt16(R, i1); ReadBeInt16(R, i2); (*skip minlsb and minrsb*) 
-            ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.minY:=i1+i2; (*minasc + mindsc*)
-            ReadBeInt16(R, i1); F.minY:=i1; (*minwidth*) 
+            ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.minY:=0; (*minasc + mindsc*)
+            ReadBeInt16(R, i1); F.minX:=0; (*minwidth*) 
             ReadBeInt16(R, i1); (*skip mincat*)
             ReadBeInt16(R, i1); ReadBeInt16(R, i2); (*skip maxlsb and maxrsb*) 
             ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.maxY:=i1+i2; (*maxasc + maxdsc*)
-            ReadBeInt16(R, i1); F.maxY:=i1; (*maxwidth*) 
+            ReadBeInt16(R, i1); F.maxX:=i1; (*maxwidth*) 
             ReadBeInt16(R, i1); (*skip maxcat*)
             F.height:=F.maxY; 
 
