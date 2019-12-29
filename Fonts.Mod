@@ -83,18 +83,11 @@ BEGIN
 END RdL32;
 
 PROCEDURE Reverse(b:BYTE): BYTE;
-    VAR r: BYTE;
+    VAR r, mask: BYTE;
 BEGIN
-    r:=0;
-    IF (b MOD 2) = 1 THEN r := r + 128 END;
-    IF ((b DIV 2) MOD 2) = 1 THEN r := r + 64 END;
-    IF ((b DIV 4) MOD 2) = 1 THEN r := r + 32 END;
-    IF ((b DIV 8) MOD 2) = 1 THEN r := r + 16 END;
-    IF ((b DIV 16) MOD 2) = 1 THEN r := r + 8 END;
-    IF ((b DIV 32) MOD 2) = 1 THEN r := r + 4 END;
-    IF ((b DIV 64) MOD 2) = 1 THEN r := r + 2 END;
-    IF ((b DIV 128) MOD 2) = 1 THEN r := r + 1 END;
-    RETURN r
+    r := 0; mask := 80H;
+    WHILE b # 0 DO IF ODD(b) THEN INC(r, mask) END; b := b DIV 2; mask := mask DIV 2  END
+    RETURN r 
 END Reverse;
 
 PROCEDURE FindSpace(B: RasterBlock; size, align: INTEGER): INTEGER;
