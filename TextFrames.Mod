@@ -220,7 +220,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
   BEGIN F.H := F.H + F.Y - newY; F.Y := newY;
     botY := F.Y + F.bot + dsr;
     L := F.trailer; curY := F.Y + F.H - F.top - asr;
-    WHILE (L.next # F.trailer) & (curY >= botY) DO
+    WHILE (L.next # F.trailer) & (curY - L.next.lsp >= botY) DO
       L := L.next; curY := curY - L.lsp
     END;
     L.next := F.trailer;
