@@ -515,7 +515,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
           DisplayLine(F, L, R, F.X + F.left, curY, 0);
           org := org + L.len; L := L.next
         END;
-        IF hchg THEN ll := F.Y; F.H := F.H - (curY - dsr - F.Y); F.Y := curY - dsr; Extend(F, ll) END
+        IF hchg THEN ll := F.Y; Reduce(F, curY); Extend(F, ll) END
       END
     END;
     UpdateMark(F)
