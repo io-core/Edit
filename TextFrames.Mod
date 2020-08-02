@@ -2,10 +2,11 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
                    (*CP 12.2018 changed to adopt NL instead of CR*)
                    (*MS 1.2019 adapted for Unicode*)
                    (*CP 6.2019 Shift-Enter for Command Invocation*)
+                   (*CP 7.2020 Accept Exec Message*)
 
   IMPORT Modules, Input, Display, Viewers, Fonts, Texts, Oberon, MenuViewers;
 
-  CONST replace* = 0; insert* = 1; delete* = 2; unmark* = 3; (*message id*)
+  CONST replace* = 0; insert* = 1; delete* = 2; unmark* = 3; exec* = 4; (*message id*)
     BS = 8X; TAB = 9X; CR = 0DX; NL = 0AX; DEL = 7FX;
 
   TYPE Line = POINTER TO LineDesc;
@@ -42,6 +43,10 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       id*: INTEGER;
       text*: Texts.Text;
       beg*, end*: LONGINT
+    END;
+
+    CallMsg* = RECORD (Display.FrameMsg)
+      offset*: INTEGER
     END;
 
     CopyOverMsg = RECORD (Display.FrameMsg)
@@ -839,7 +844,8 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       Oberon.CopyMsg: Copy(F, F1); M.F := F1 |
       MenuViewers.ModifyMsg: Modify(F, M.id, M.dY, M.Y, M.H) |
       CopyOverMsg: CopyOver(F, M.text, M.beg, M.end) |
-      UpdateMsg: IF F.text = M.text THEN Update(F, M) END
+      UpdateMsg: IF F.text = M.text THEN Update(F, M) END | 
+      CallMsg: Call(F,M.offset,FALSE)
       END
     END
   END Handle;
