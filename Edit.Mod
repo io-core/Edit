@@ -1,11 +1,8 @@
-MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
-             (*CP 12.2018 changed to adopt NL instead of CR *)
-             (*MS 1.2019 adapted for Unicode*)
+MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
+  IMPORT Files, Fonts, Texts, Input, Display, Viewers, Oberon, MenuViewers, TextFrames;
 
-  IMPORT Files, Fonts, Texts, Display, Viewers, Oberon, MenuViewers, TextFrames;
-
-  CONST CR = 0DX; NL = 0AX; maxlen = 32;
-    StandardMenu = "System.Close System.Copy System.Grow Edit.Search Edit.Store";
+  CONST CR = Input.CR; maxlen = 32;
+    StandardMenu = "System.Close System.Copy System.Grow Edit.Search Edit.Store | System.Expand System.Spread System.Clone";
 
   VAR W: Texts.Writer;
     time: LONGINT;
@@ -19,6 +16,10 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
     RETURN m
   END Max;
 
+  PROCEDURE FocusViewer(): Viewers.Viewer;  (*for Extended Oberon*)
+  BEGIN RETURN Viewers.FocusViewer
+  END FocusViewer;
+
   PROCEDURE Open*;
     VAR T: Texts.Text;
     S: Texts.Scanner;
@@ -26,7 +27,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
     X, Y: INTEGER;
     beg, end, time: LONGINT;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
-    IF (S.class = Texts.Char) & (S.codepoint = ORD("^")) OR (S.line # 0) THEN
+    IF (S.class = Texts.Char) & (S.c = "^") OR (S.line # 0) THEN
       Oberon.GetSelection(T, beg, end, time);
       IF time >= 0 THEN Texts.OpenScanner(S, T, beg); Texts.Scan(S) END
     END;
@@ -44,13 +45,12 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
       Text: TextFrames.Frame;
       T: Texts.Text;
       S: Texts.Scanner;
-      f: Files.File; R: Files.Rider;
       beg, end, time, len: LONGINT;
 
     PROCEDURE Backup (VAR name: ARRAY OF CHAR);
       VAR res, i: INTEGER; bak: ARRAY 32 OF CHAR;
     BEGIN i := 0;
-      WHILE name[i] # 0X DO bak[i] := name[i]; INC(i) END;
+      WHILE (i < 27) & (name[i] # 0X) DO bak[i] := name[i]; INC(i) END;
       bak[i] := "."; bak[i+1] := "B"; bak[i+2] := "a"; bak[i+3] := "k"; bak[i+4] := 0X;
       Files.Rename(name, bak, res)
     END Backup;
@@ -61,7 +61,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
     ELSE V := Oberon.MarkedViewer(); Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos)
     END;
     Texts.Scan(S);
-    IF (S.class = Texts.Char) & (S.codepoint = ORD("^")) THEN
+    IF (S.class = Texts.Char) & (S.c = "^") THEN
       Oberon.GetSelection(T, beg, end, time);
       IF time >= 0 THEN Texts.OpenScanner(S, T, beg); Texts.Scan(S) END
     END;
@@ -81,7 +81,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
       fnt: Fonts.Font; col, voff: INTEGER;
   BEGIN Oberon.GetSelection(T, beg, end, time);
     IF time >= 0 THEN
-      v := Oberon.FocusViewer;
+      v := FocusViewer();
       IF (v # NIL) & (v.dsc # NIL) & (v.dsc.next IS TextFrames.Frame) THEN
         F := v.dsc.next(TextFrames.Frame);
         Texts.Attributes(F.text, F.carloc.pos, fnt, col, voff);
@@ -97,7 +97,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
     IF time >= 0 THEN
       Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
       IF S.class = Texts.Name THEN
-        Texts.ChangeLooks(T, beg, end, {0}, Fonts.This(S.s), 0, 0)
+        Texts.ChangeLooks(T, beg, end, {0}, Fonts.Load(S.s), 0, 0)
       END
     END
   END ChangeFont;
@@ -142,7 +142,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
     END Forward;
 
   BEGIN V := Oberon.Par.vwr;
-    IF Oberon.Par.frame # V.dsc THEN V := Oberon.FocusViewer END;
+    IF Oberon.Par.frame # V.dsc THEN V := FocusViewer() END;
     IF (V.dsc # NIL) & (V.dsc.next IS TextFrames.Frame) THEN
       Text := V.dsc.next(TextFrames.Frame);
       prevTime := time; Oberon.GetSelection(T, beg, end, time);
@@ -181,7 +181,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
       V: Viewers.Viewer;
       beg, end, time: LONGINT;
   BEGIN
-    V := Oberon.FocusViewer;
+    V := FocusViewer();
     IF (V.dsc # NIL) & (V.dsc.next IS TextFrames.Frame) THEN
       Text := V.dsc.next(TextFrames.Frame);
       Oberon.GetSelection(T, beg, end, time);
@@ -206,7 +206,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
       V: Viewers.Viewer;
       pos: LONGINT;
       M: TextFrames.Frame;
-  BEGIN V := Oberon.FocusViewer;
+  BEGIN V := FocusViewer();
     IF (V # NIL) & (V IS MenuViewers.Viewer) THEN
       Menu := V.dsc; Main := V.dsc.next;
       IF Main IS TextFrames.Frame THEN
@@ -228,23 +228,6 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
       END
     END
   END Recall;
-
-  PROCEDURE InsertUnicode*;
-    VAR S: Texts.Scanner;
-      W: Texts.Writer;
-      T: Texts.Text;
-      F: TextFrames.Frame;
-      codepoint: INTEGER;
-  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
-    IF S.class = Texts.Int THEN
-      Texts.OpenWriter(W);
-      Texts.WriteUnicode(W, S.i);
-      F := Oberon.FocusViewer.dsc.next(TextFrames.Frame);
-      Texts.Insert(F.text, F.carloc.pos, W.buf);
-      TextFrames.SetCaret(F, F.carloc.pos + Texts.UnicodeWidth(S.i));
-    END
-  END InsertUnicode;
-
 
 BEGIN Texts.OpenWriter(W)
 END Edit.
