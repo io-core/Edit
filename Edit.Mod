@@ -17,10 +17,10 @@ Edit.Open example.txt
 ## Modules
 end-package-description *)
 
-(*
+(* begin-module-description
 Module Edit provides document editing capability.
 
-*)
+end-module-description *)
 MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
   IMPORT Files, Fonts, Texts, Input, Display, Viewers, Oberon, MenuViewers, TextFrames;
 
