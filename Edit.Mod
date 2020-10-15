@@ -1,5 +1,5 @@
 (* begin-package-description
-## Overview
+## Package Overview:
 The Edit package provides:
 
 * The 'text' abstraction for manipulating textual content
@@ -7,14 +7,14 @@ The Edit package provides:
 * The Edit tool for interacting with documents
 * The font mechanism in Oberon
 
-## Examples
+## Package Use:
 
 USAGE:
 ```
 Edit.Open example.txt
 ```
 
-## Modules
+## Modules in this package:
 end-package-description *)
 
 (* begin-module-use-description
