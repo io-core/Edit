@@ -815,6 +815,10 @@ MODULE TextFrames; (*JG 8.10.90 / NW 16.11.2015 / AP 1.6.20 Extended Oberon*)
   BEGIN B := TBuf; NEW(TBuf); Texts.OpenBuf(TBuf)
   END Recall;
 
+  (* begin-section-description
+## ---------- Oberon Message Handling
+  end-section-description *)
+
   (*------------------message handling------------------------*)
 
   PROCEDURE RemoveMarks (F: Frame);
