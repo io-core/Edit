@@ -2,8 +2,8 @@
 Module Texts defines the 'text' abstract data type used pervasively in the Oberon system.
 
 end-module-use-description *)
-MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10.1.2019 / AP 9.3.20 Extended Oberon*)
-  IMPORT Files, Input, Fonts;
+MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10.1.2019*)
+  IMPORT Files, Fonts;
 
   CONST (*scanner symbol classes*)
     Inval* = 0;         (*invalid symbol*)
@@ -16,7 +16,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
     (* TextBlock = TextTag offset run {run} "0" len {AsciiCode}.
       run = fnt [name] col voff len. *)
 
-    TAB = Input.TAB; CR = Input.CR;
+    TAB = 9X; CR = 0DX; NL = 0AX; 
     TextTag = 0F1X;
     replace* = 0; insert* = 1; delete* = 2; unmark* = 3;  (*op-codes*)
 
@@ -96,7 +96,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
     WHILE fno # 0 DO
       IF fno = N THEN
         Files.ReadString(R, FName);
-        Dict[N] := Fonts.Load(FName); INC(N)
+        Dict[N] := Fonts.This(FName); INC(N)
       END;
       NEW(q); q.fnt := Dict[fno];
       Files.ReadByte(R, bt); q.col := bt;
@@ -343,8 +343,8 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
       i, j, h, d, e, n, s: INTEGER;
       x: REAL;
   BEGIN ch := S.nextCh; i := 0;
-    WHILE (ch = " ") OR (ch = TAB) OR (ch = CR) DO
-      IF ch = CR THEN INC(S.line) END ;
+    WHILE (ch = " ") OR (ch = TAB) OR (ch = NL) OR (ch = CR) DO
+      IF (ch = CR) OR (ch = NL) THEN INC(S.line) END ;
       Read(S, ch)
     END ;
     IF ("A" <= ch) & (ch <= "Z") OR ("a" <= ch) & (ch <= "z") THEN (*name*)
@@ -435,7 +435,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
   END Write;
 
   PROCEDURE WriteLn* (VAR W: Writer);
-  BEGIN Write(W, CR)
+  BEGIN Write(W, NL)
   END WriteLn;
 
   PROCEDURE WriteString* (VAR W: Writer; s: ARRAY OF CHAR);
@@ -489,8 +489,8 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
       IF m >= 10000000 THEN INC(e); m := m DIV 10 END ;
       i := 0; k := 13-n;
       REPEAT
-        IF i = k THEN INC(m, 5) END ;    (*rounding*)
-        d[i] := CHR(m MOD 10 + 30H); m := m DIV 10; INC(i)
+         IF i = k THEN INC(m, 5) END ;    (*rounding*)
+       d[i] := CHR(m MOD 10 + 30H); m := m DIV 10; INC(i)
       UNTIL m = 0;
       DEC(i); Write(W, d[i]); Write(W, ".");
       IF i < n-7 THEN n := 0 ELSE n := 14 - n END ;

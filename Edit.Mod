@@ -1,5 +1,5 @@
 (* begin-package-description
-## Package Overview:
+### _Package Overview:_
 The Edit package provides:
 
 * The 'text' abstraction for manipulating textual content
@@ -7,25 +7,25 @@ The Edit package provides:
 * The Edit tool for interacting with documents
 * The font mechanism in Oberon
 
-## Package Use:
+### _Package Use:_
 
 USAGE:
 ```
 Edit.Open example.txt
 ```
 
-## Modules in this package:
+### _Modules in this package:_
 end-package-description *)
 
 (* begin-module-use-description
 Module Edit provides document editing capability.
 
 end-module-use-description *)
-MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
-  IMPORT Files, Fonts, Texts, Input, Display, Viewers, Oberon, MenuViewers, TextFrames;
+MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
+  IMPORT Files, Fonts, Texts, Display, Viewers, Oberon, MenuViewers, TextFrames;
 
-  CONST CR = Input.CR; maxlen = 32;
-    StandardMenu = "System.Close System.Copy System.Grow Edit.Search Edit.Store | System.Expand System.Spread System.Clone";
+  CONST CR = 0DX; maxlen = 32;
+    StandardMenu = "System.Close System.Copy System.Grow Edit.Search Edit.Store";
 
   VAR W: Texts.Writer;
     time: LONGINT;
@@ -38,10 +38,6 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
   BEGIN IF i >= j THEN m := i ELSE m := j END ;
     RETURN m
   END Max;
-
-  PROCEDURE FocusViewer(): Viewers.Viewer;  (*for Extended Oberon*)
-  BEGIN RETURN Viewers.FocusViewer
-  END FocusViewer;
 
   PROCEDURE Open*;
     VAR T: Texts.Text;
@@ -68,12 +64,13 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
       Text: TextFrames.Frame;
       T: Texts.Text;
       S: Texts.Scanner;
+      f: Files.File; R: Files.Rider;
       beg, end, time, len: LONGINT;
 
     PROCEDURE Backup (VAR name: ARRAY OF CHAR);
       VAR res, i: INTEGER; bak: ARRAY 32 OF CHAR;
     BEGIN i := 0;
-      WHILE (i < 27) & (name[i] # 0X) DO bak[i] := name[i]; INC(i) END;
+      WHILE name[i] # 0X DO bak[i] := name[i]; INC(i) END;
       bak[i] := "."; bak[i+1] := "B"; bak[i+2] := "a"; bak[i+3] := "k"; bak[i+4] := 0X;
       Files.Rename(name, bak, res)
     END Backup;
@@ -104,7 +101,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
       fnt: Fonts.Font; col, voff: INTEGER;
   BEGIN Oberon.GetSelection(T, beg, end, time);
     IF time >= 0 THEN
-      v := FocusViewer();
+      v := Oberon.FocusViewer;
       IF (v # NIL) & (v.dsc # NIL) & (v.dsc.next IS TextFrames.Frame) THEN
         F := v.dsc.next(TextFrames.Frame);
         Texts.Attributes(F.text, F.carloc.pos, fnt, col, voff);
@@ -120,7 +117,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
     IF time >= 0 THEN
       Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
       IF S.class = Texts.Name THEN
-        Texts.ChangeLooks(T, beg, end, {0}, Fonts.Load(S.s), 0, 0)
+        Texts.ChangeLooks(T, beg, end, {0}, Fonts.This(S.s), 0, 0)
       END
     END
   END ChangeFont;
@@ -165,7 +162,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
     END Forward;
 
   BEGIN V := Oberon.Par.vwr;
-    IF Oberon.Par.frame # V.dsc THEN V := FocusViewer() END;
+    IF Oberon.Par.frame # V.dsc THEN V := Oberon.FocusViewer END;
     IF (V.dsc # NIL) & (V.dsc.next IS TextFrames.Frame) THEN
       Text := V.dsc.next(TextFrames.Frame);
       prevTime := time; Oberon.GetSelection(T, beg, end, time);
@@ -204,7 +201,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
       V: Viewers.Viewer;
       beg, end, time: LONGINT;
   BEGIN
-    V := FocusViewer();
+    V := Oberon.FocusViewer;
     IF (V.dsc # NIL) & (V.dsc.next IS TextFrames.Frame) THEN
       Text := V.dsc.next(TextFrames.Frame);
       Oberon.GetSelection(T, beg, end, time);
@@ -229,7 +226,7 @@ MODULE Edit; (*JG 2.11.90 / NW 28.11.15 / AP 1.9.20 Extended Oberon*)
       V: Viewers.Viewer;
       pos: LONGINT;
       M: TextFrames.Frame;
-  BEGIN V := FocusViewer();
+  BEGIN V := Oberon.FocusViewer;
     IF (V # NIL) & (V IS MenuViewers.Viewer) THEN
       Menu := V.dsc; Main := V.dsc.next;
       IF Main IS TextFrames.Frame THEN
