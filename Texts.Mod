@@ -434,7 +434,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
           IF hex THEN S.class := Inval ELSE S.class := Int END
         END
       ELSE (*spectal character*) S.class := Char;
-        IF neg THEN S.c := "-" ELSE S.c := ch; Read(S, ch) END
+        IF neg THEN S.codepoint := ORD("-") ELSE ReadUnicodeRest(S, ch, S.codepoint); Read(S, ch) END
       END
     END ;
     S.nextCh := ch
@@ -472,6 +472,26 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
     Files.Write(W.rider, ch);
     INC(W.buf.last.len); INC(W.buf.len)
   END Write;
+
+  PROCEDURE WriteUnicode* (VAR W: Writer; codepoint: INTEGER);
+  BEGIN
+    IF codepoint < 80H THEN
+      Write(W, CHR(codepoint))
+    ELSIF codepoint < 800H THEN
+      Write(W, CHR(0C0H + (codepoint DIV 40H MOD 20H)));
+      Write(W, CHR(080H + (codepoint MOD 40H)))
+    ELSIF codepoint < 10000H THEN
+      Write(W, CHR(0E0H + (codepoint DIV 1000H MOD 10H)));
+      Write(W, CHR(080H + (codepoint DIV 40H MOD 40H)));
+      Write(W, CHR(080H + (codepoint MOD 40H)))
+    ELSE
+      Write(W, CHR(0F0H + (codepoint DIV 40000H MOD 08H)));
+      Write(W, CHR(080H + (codepoint DIV 1000H MOD 40H)));
+      Write(W, CHR(080H + (codepoint DIV 40H MOD 40H)));
+      Write(W, CHR(080H + (codepoint MOD 40H)))
+    END
+  END WriteUnicode;
+
 
   PROCEDURE WriteLn* (VAR W: Writer);
   BEGIN Write(W, NL)
