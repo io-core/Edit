@@ -1,3 +1,14 @@
+(* begin-module-use-description
+Module TextFrames implements the operations on text frames in Oberon.
+
+This is the heart of Oberon's text-based user interface.
+
+end-module-use-description *)
+(* begin-module-develop-description
+
+(JG 8.10.90 / NW 10.5.2013 / 11.2.2017 / CP 12.2018 / MS 1.2019 adapted for Unicode / CP 6.2019 / CP 7.2020)
+
+end-module-develop-description *)
 MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
                    (*CP 12.2018 changed to adopt NL instead of CR*)
                    (*MS 1.2019 adapted for Unicode*)
