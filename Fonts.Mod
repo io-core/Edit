@@ -51,7 +51,7 @@ BEGIN
   RETURN result
 END FindSpace;
 
-PROCEDURE OberonLoadRange(F: Font; rangeStart: INTEGER; f: Files.File);
+PROCEDURE OberonLoadRange(F: Font; rangeStart: INTEGER; f: Files.File; padded: BOOLEAN);
 TYPE RunRec = RECORD beg, end: INTEGER END;
 VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns: INTEGER;
     beg, end, i, j, k, n, a, a1: INTEGER;
@@ -139,9 +139,9 @@ BEGIN
   f := Files.Old(F.name);
   Files.Set(R, f, 0); Files.ReadByte(R, b);
   IF b = OriginalFontFileId THEN
-    OberonLoadRange(F,rangeStart,f)
+    OberonLoadRange(F,rangeStart,f,FALSE)
   ELSIF b = PaddedFontFileId THEN
-    OberonLoadRange(F,rangeStart,f)
+    OberonLoadRange(F,rangeStart,f,TRUE)
   END
 END LoadRange;
 
@@ -249,10 +249,8 @@ BEGIN F := root;
         ReadInt16(R, F.height); ReadInt16(R, F.minX); ReadInt16(R, F.maxX);
 	RdInt16(R, minY); ReadInt16(R, F.maxY); ReadInt16(R, NofRuns);
         IF minY >= 80H THEN F.minY := minY - 100H ELSE F.minY := minY END;
-        k := 0;
-        WHILE k # NofRuns DO
-          ReadInt16(R, beg); ReadInt16(R, end); i := beg;
-
+        ReadInt16(R, beg); ReadInt16(R, end); i := beg;
+        IF (NofRuns = 1) & (beg = 0) THEN
 	  WHILE i < end DO
 	    i1 := i DIV 1000H;
 	    i2 := i DIV 40H MOD 40H;
@@ -266,10 +264,10 @@ BEGIN F := root;
 	    END;
 	    INC(i, 40H)
 	  END;
-
-          INC(k)
-        END;
-        F.next := root; root := F
+          F.next := root; root := F
+        ELSE (*bad font file, must have only one run and the run must start at 0*) 
+          F := Default
+        END
       END
     ELSE (*font file not available*) F := Default
     END
