@@ -54,41 +54,52 @@ END FindSpace;
 PROCEDURE OberonLoadRange(F: Font; rangeStart: INTEGER; f: Files.File; padded: BOOLEAN);
 TYPE RunRec = RECORD beg, end: INTEGER END;
 VAR rangeEnd, skipBytes, skipBoxesBefore, skipBoxesAfter, usedRuns, totalRuns: INTEGER;
-    beg, end, i, j, k, n, a, a1: INTEGER;
+    beg, end, i, j, k, n, a, a1, ph, pw, glo, pk, pn: INTEGER;
     R: Files.Rider; 
     b, dx, x, y, w, h: BYTE;
     run: ARRAY 32 OF RunRec;
 BEGIN
   a := FindSpace(F.block, 256, 4);
   SYSTEM.PUT(F.T1[rangeStart DIV 1000H] + (rangeStart DIV 40H MOD 40H) * 4, a);
-  rangeEnd := rangeStart + 64; skipBytes := 0; skipBoxesBefore := 0; skipBoxesAfter := 0;
-  Files.Set(R, f, 14); ReadInt16(R, totalRuns);
-  i := 0; usedRuns := 0;
-  WHILE i # totalRuns DO
-    ReadInt16(R, beg); ReadInt16(R, end);
-    IF end > rangeEnd THEN 
-       skipBoxesAfter := skipBoxesAfter + end - rangeEnd; end := rangeEnd 
+  rangeEnd := rangeStart + 64; skipBytes := 0; skipBoxesBefore := 0; skipBoxesAfter := 0; usedRuns := 0;
+  IF padded THEN
+    Files.Set(R, f, 4); ReadInt16(R, ph); (* padded height is overall font Height *)
+    Files.Set(R, f, 8); ReadInt16(R, pw); (* padded width is overall font MaxX *)
+    pk := (pw + 7) DIV 8;
+    pn := pk * ph;
+    beg := 0; Files.Set(R, f, 18); ReadInt16(R, end); run[0].beg := rangeStart; 
+    IF end > rangeEnd THEN run[0].end := rangeEnd ELSE run[0].end := end END;
+    Files.Set(R, f, 20+(rangeStart*10)); INC(usedRuns);
+  ELSE
+    Files.Set(R, f, 14); ReadInt16(R, totalRuns);
+    i := 0; 
+    WHILE i # totalRuns DO
+      ReadInt16(R, beg); ReadInt16(R, end);
+      IF end > rangeEnd THEN 
+         skipBoxesAfter := skipBoxesAfter + end - rangeEnd; end := rangeEnd 
+      END;
+      IF beg < rangeStart THEN 
+         skipBoxesBefore := skipBoxesBefore + rangeStart - beg; beg := rangeStart 
+      END;
+      IF end <= rangeStart THEN
+        skipBoxesBefore := skipBoxesBefore + end - beg;
+      ELSIF beg >= rangeEnd THEN
+        skipBoxesAfter := skipBoxesAfter + end - beg;
+      ELSE
+        run[usedRuns].beg := beg; run[usedRuns].end := end;
+        INC(usedRuns);
+      END;
+      INC(i)
     END;
-    IF beg < rangeStart THEN 
-       skipBoxesBefore := skipBoxesBefore + rangeStart - beg; beg := rangeStart 
+    i := 0;
+    WHILE i # skipBoxesBefore DO
+      RdInt16(R, dx); RdInt16(R, x); RdInt16(R, y);
+      RdInt16(R, w); RdInt16(R, h);
+      skipBytes := skipBytes + (w + 7) DIV 8 * h;
+      INC(i)
     END;
-    IF end <= rangeStart THEN
-      skipBoxesBefore := skipBoxesBefore + end - beg;
-    ELSIF beg >= rangeEnd THEN
-      skipBoxesAfter := skipBoxesAfter + end - beg;
-    ELSE
-      run[usedRuns].beg := beg; run[usedRuns].end := end;
-      INC(usedRuns);
-    END;
-    INC(i)
   END;
-  i := 0;
-  WHILE i # skipBoxesBefore DO
-    RdInt16(R, dx); RdInt16(R, x); RdInt16(R, y);
-    RdInt16(R, w); RdInt16(R, h);
-    skipBytes := skipBytes + (w + 7) DIV 8 * h;
-    INC(i)
-  END;
+  
   i := 0; j := 0;
   WHILE i < usedRuns DO
     j := run[i].beg;
@@ -106,29 +117,45 @@ BEGIN
     END;
     INC(i)
   END;
-  i := 0;
-  WHILE i # skipBoxesAfter DO
-    RdInt16(R, b); RdInt16(R, b); RdInt16(R, b);
-    RdInt16(R, b); RdInt16(R, b);
-    INC(i)
-  END;
-  i := 0;
-  WHILE i < skipBytes DO Files.ReadByte(R, b); INC(i) END;
-  i := 0; j := 0;
-  WHILE i < usedRuns DO
-    j := run[i].beg;
-    WHILE (j < run[i].end) DO
-      SYSTEM.GET(a + (j - rangeStart) * 4, a1);
-      IF (a1 # 0) THEN
-        SYSTEM.GET(a1, w); SYSTEM.GET(a1+1, h);
-        n := (w + 7) DIV 8 * h;
-        INC(a1, 2);
-        WHILE n # 0 DO DEC(n); Files.ReadByte(R, b); SYSTEM.PUT(a1, b); INC(a1) END;
-      END;
-      INC(j)
+  
+  IF padded THEN
+    Files.Set(R, f, 20+((end+1)*10 + (pn*rangeStart)));
+  ELSE
+    i := 0;
+    WHILE i # skipBoxesAfter DO
+      RdInt16(R, b); RdInt16(R, b); RdInt16(R, b);
+      RdInt16(R, b); RdInt16(R, b);
+      INC(i)
     END;
-    INC(i)
-  END
+    i := 0;
+    WHILE i < skipBytes DO Files.ReadByte(R, b); INC(i) END;
+  END;
+
+    i := 0; j := 0;
+    WHILE i < usedRuns DO
+      j := run[i].beg;
+      WHILE (j < run[i].end) DO
+        SYSTEM.GET(a + (j - rangeStart) * 4, a1);
+        IF (a1 # 0) THEN
+          SYSTEM.GET(a1, w); SYSTEM.GET(a1+1, h);
+          k := (w + 7) DIV 8;
+          n := k * h;
+          INC(a1, 2);
+          WHILE n # 0 DO 
+            DEC(n); 
+            IF padded THEN
+              Files.ReadByte(R, b); SYSTEM.PUT(a1, b); INC(a1);
+              IF k = 1 THEN Files.ReadByte(R, b) END;
+            ELSE
+              Files.ReadByte(R, b); SYSTEM.PUT(a1, b); INC(a1);
+            END
+          END;
+        END;
+        INC(j)
+      END;
+      INC(i)
+    END
+  
 END OberonLoadRange;
 
 
