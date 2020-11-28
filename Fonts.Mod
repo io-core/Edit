@@ -1,10 +1,11 @@
-MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019 CP 2018,2019*)
+MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019 CP 2018,2019,2020*)
               (*MS 1.2019 adapted for Unicode*)
 
   IMPORT SYSTEM, Files;
 
-  CONST FontFileId = 0DBH;
-        PcfFileId = 01H;
+  CONST OriginalFontFileId = 0DBH;
+        PaddedFontFileId = 0DCH;
+     
 
   TYPE Font* = POINTER TO FontDesc;
     RasterBlock = POINTER TO RasterBlockDesc;
@@ -22,30 +23,6 @@ MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019 CP 2018,2019*)
       raster: ARRAY 1000 OF BYTE;
     END;
 
-    tocEntry = RECORD
-        typ:    INTEGER;
-        format: INTEGER;
-        size:   INTEGER;
-        offset: INTEGER
-    END;
-
-    tocTable = POINTER TO tocTableDesc;
-    tocTableDesc = RECORD
-      PROPERTIES:       POINTER TO tocEntry;
-      ACCELERATORS:     POINTER TO tocEntry;
-      METRICS:          POINTER TO tocEntry;
-      BITMAPS:         POINTER TO tocEntry;
-      INKMETRICS:      POINTER TO tocEntry;
-      BDFENCODINGS:    POINTER TO tocEntry;
-      SWIDTHS:         POINTER TO tocEntry;
-      GLYPHNAMES:     POINTER TO tocEntry;
-      BDFACCELERATORS:  POINTER TO tocEntry
-    END;
-
-    Metrics = RECORD
-        l,r,w,a,d: INTEGER
-    END;
-    
 VAR Default*, root*: Font;
   FallbackPat: ARRAY 35 OF BYTE;
 
@@ -54,42 +31,10 @@ PROCEDURE ReadInt16(VAR R: Files.Rider; VAR r: INTEGER);
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); r := b1 * 100H + b0;
 END ReadInt16;
 
-PROCEDURE ReadBeInt16(VAR R: Files.Rider; VAR r: INTEGER);
-  VAR b0, b1: BYTE;
-BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1); r := b0 * 100H + b1;
-END ReadBeInt16; 
-
-PROCEDURE ReadBeInt32(VAR R: Files.Rider; VAR r: INTEGER);
-  VAR b0, b1, b2, b3: BYTE;
-BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1);
-      Files.ReadByte(R, b2); Files.ReadByte(R, b3); r := b0 * 1000000H + b1 * 10000H + b2 * 100H + b3;
-END ReadBeInt32;
-
 PROCEDURE RdInt16(VAR R: Files.Rider; VAR b0: BYTE);
   VAR b1: BYTE;
 BEGIN Files.ReadByte(R, b0); Files.ReadByte(R, b1)
 END RdInt16;
-
-PROCEDURE RdL32(VAR R: Files.Rider): INTEGER;
-    VAR b0,b1,b2,b3: BYTE;
-      x: INTEGER;
-BEGIN
-   Files.ReadByte(R, b0);
-   Files.ReadByte(R, b1);
-   Files.ReadByte(R, b2);
-   Files.ReadByte(R, b3);
-     x:= (1000000H * b3) + (10000H * b2) + (100H * b1) + b0;
-    RETURN x
-END RdL32;
-
-PROCEDURE Reverse(b:BYTE): BYTE;
-   VAR r, mask: BYTE;
-BEGIN
-   r:=0; mask:=80H;
-   WHILE b#0 DO IF ODD(b) THEN INC(r,mask) END; b:=b DIV 2; mask:=mask DIV 2 END
-   RETURN r
-END Reverse;
-
 
 PROCEDURE FindSpace(B: RasterBlock; size, align: INTEGER): INTEGER;
 VAR result: INTEGER;
@@ -186,159 +131,6 @@ BEGIN
   END
 END OberonLoadRange;
 
-PROCEDURE PCFGetTable(f: Files.File): tocTable;
-  VAR tt: tocTable; toc: POINTER TO tocEntry; R: Files.Rider; b: BYTE; t, tl, i: INTEGER;
-
-BEGIN
-  Files.Set(R, f, 4);
-  tl := RdL32(R);
-  t:=0;
-
-  NEW(tt);
-
-  tt.PROPERTIES:=NIL;
-  tt.ACCELERATORS:=NIL;
-  tt.METRICS:=NIL;
-  tt.BITMAPS:=NIL;
-  tt.INKMETRICS:=NIL;
-  tt.BDFENCODINGS:=NIL;
-  tt.SWIDTHS:=NIL;
-  tt.GLYPHNAMES:=NIL;
-  tt.BDFACCELERATORS:=NIL;
-
-  WHILE ((tl # 0) & (t < 9)) DO
-    NEW(toc);
-    toc.typ := RdL32(R);
-    toc.format := RdL32(R);
-    toc.size := RdL32(R);
-    toc.offset := RdL32(R);
-    IF (toc.typ = 1) THEN tt.PROPERTIES := toc END;
-    IF (toc.typ = 2) THEN tt.ACCELERATORS := toc END;
-    IF (toc.typ = 4) THEN tt.METRICS := toc END;
-    IF (toc.typ = 8) THEN tt.BITMAPS := toc END;
-    IF (toc.typ = 16) THEN tt.INKMETRICS := toc END;
-    IF (toc.typ = 32) THEN tt.BDFENCODINGS := toc END;
-    IF (toc.typ = 64) THEN tt.SWIDTHS := toc END;
-    IF (toc.typ = 128) THEN tt.GLYPHNAMES := toc END;
-    IF (toc.typ = 256) THEN tt.BDFACCELERATORS := toc END;
-    INC(t);DEC(tl)
-  END;
-  RETURN tt
-END PCFGetTable;
-
-
-PROCEDURE PCFLoadRange(F: Font; rangeStart: INTEGER; f: Files.File);
-
-VAR beg, end, i, j, k, n, a, a1: INTEGER;
-    R: Files.Rider; 
-    b, b0, b1, b2, b3, dx, x, y, w, h: BYTE; 
-    tt: tocTable; 
-    tm, bofs, fc, lc, fr, lr, df, cx, cc, ml, mr, mw, ma, md, mh, pw: INTEGER;
-   
-
-BEGIN
-  
-  a := FindSpace(F.block, 256, 4);
-  SYSTEM.PUT(F.T1[rangeStart DIV 1000H] + (rangeStart DIV 40H MOD 40H) * 4, a);
-  tt := PCFGetTable(f);
-  Files.Set(R, f, tt.BDFENCODINGS.offset+4);
-  ReadBeInt16(R, fc);
-  ReadBeInt16(R, lc);
-  ReadBeInt16(R, fr);
-  ReadBeInt16(R, lr);
-  ReadBeInt16(R, df);
-  cc := (lc - fc + 1) * (lr - fr + 1);
-  beg := rangeStart; end := rangeStart + 40H;
-
-  FOR i := 0 TO 63 DO
-
-	tm:=( beg + i ) - fc;                                            
-        IF (tm > -1) THEN                                         
-          IF tm < cc - 1 THEN
-            Files.Set(R,f,tt.BDFENCODINGS.offset+14+(tm*2));
-            ReadBeInt16(R,tm) ;                                            
-	  ELSE
-	    tm := df
-          END
-        ELSE
-          tm := df
-        END; 
-	IF tm = 65535 THEN tm:=df END;      
-
-                                                             
-
-        Files.Set(R, f, tt.BITMAPS.offset+4);  ReadBeInt32(R,n);           
-        Files.Set(R, f, tt.BITMAPS.offset+8+(4*tm)); ReadBeInt32(R, bofs); 
-        Files.Set(R, f, tt.METRICS.offset+6+(5*tm));                       
-        Files.ReadByte(R, b); ml:=b-128;                                   
-        Files.ReadByte(R, b); mr:=b-128;                                   
-        Files.ReadByte(R, b); mw:=b-128;                                   
-        Files.ReadByte(R, b); ma:=b-128;                                   
-        Files.ReadByte(R, b); md:=b-128;                                   
-
-        mh:=md+ma;
-        IF mw < 9 THEN
-          pw := 1
-        ELSIF mw < 17 THEN
-          pw:= 2
-        ELSIF mw < 33 THEN
-          pw:= 4
-        ELSIF mw < 65 THEN
-          pw:= 8
-        ELSIF mw < 97 THEN
-          pw:= 12
-        ELSE
-          pw := 16
-        END;
-
-
-        dx := mw+1; x := 0; y := 0; w := mw; h := mh;
-      
-        a1 := FindSpace(F.block, (pw * h) + 5, 1); 
-        b0 := 0FFH; 
-
-        SYSTEM.PUT(a1, dx); SYSTEM.PUT(a1+1, x); SYSTEM.PUT(a1+2, y);
-
-        SYSTEM.PUT(a1+3, w); 
-        SYSTEM.PUT(a1+4, h);
-
-        Files.Set(R, f, (8+(4*n) + 16) + tt.BITMAPS.offset+bofs);
-
-	j:=h-1;
-	WHILE j # 0 DO
-          Files.ReadByte(R, b0);                                         
-          Files.ReadByte(R, b1);                                         
-          Files.ReadByte(R, b2);                                         
-          Files.ReadByte(R, b3);                                         
-	  b:=0H;
-	  IF pw = 1 THEN
-	      b:=Reverse(b0);
-              SYSTEM.PUT(a1+5+(j*pw)+0,b)
-	  ELSE IF pw = 2 THEN
-	      b:=Reverse(b0);
-              SYSTEM.PUT(a1+5+(j*pw)+0,b);
-	      b:=Reverse(b1);
-              SYSTEM.PUT(a1+5+(j*pw)+1,b)
-	  ELSE
-              b:=Reverse(b0);
-              SYSTEM.PUT(a1+5+(j*pw)+0,b);
-              b:=Reverse(b1);
-              SYSTEM.PUT(a1+5+(j*pw)+1,b);
-              b:=Reverse(b2);
-              SYSTEM.PUT(a1+5+(j*pw)+2,b);
-              b:=Reverse(b3);
-              SYSTEM.PUT(a1+5+(j*pw)+3,b)
-	  END END;
-	  DEC(j)
-	END; 
- 
-        SYSTEM.PUT(a + (i * 4), a1 + 3);
-        
-  END
-
-  
-END PCFLoadRange;
-
 
 PROCEDURE LoadRange(F: Font; rangeStart: INTEGER);
   VAR f: Files.File; R: Files.Rider;
@@ -346,15 +138,10 @@ PROCEDURE LoadRange(F: Font; rangeStart: INTEGER);
 BEGIN
   f := Files.Old(F.name);
   Files.Set(R, f, 0); Files.ReadByte(R, b);
-  IF b = FontFileId THEN
+  IF b = OriginalFontFileId THEN
     OberonLoadRange(F,rangeStart,f)
-  ELSE
-    IF b = PcfFileId THEN
-      Files.ReadByte(R, b); Files.ReadByte(R, b2); Files.ReadByte(R, b3);
-      IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
-        PCFLoadRange(F,rangeStart,f)
-      END
-    END
+  ELSIF b = PaddedFontFileId THEN
+    OberonLoadRange(F,rangeStart,f)
   END
 END LoadRange;
 
@@ -418,14 +205,14 @@ PROCEDURE This*(name: ARRAY OF CHAR): Font;
     f: Files.File; R: Files.Rider;
     minY, b, b2, b3: BYTE;
     a, beg, end, i, i1, i2, NofRuns, k: INTEGER;
-    tt: tocTable; fc, lc, fr, lr, df, cx, cc: INTEGER;
+    fc, lc, fr, lr, df, cx, cc: INTEGER;
 BEGIN F := root;
   WHILE (F # NIL) & (name # F.name) DO F := F.next END;
   IF F = NIL THEN
     f := Files.Old(name);
     IF f # NIL THEN
       Files.Set(R, f, 0); Files.ReadByte(R, b);
-      IF b = FontFileId THEN
+      IF b = OriginalFontFileId THEN
         Files.ReadByte(R, b); (*abstraction*)
         Files.ReadByte(R, b); (*family*)
         Files.ReadByte(R, b); (*variant*)
@@ -454,56 +241,35 @@ BEGIN F := root;
           INC(k)
         END;
         F.next := root; root := F
-      ELSE (* not a native Oberon font file... pcf?*)
-        IF b = PcfFileId THEN
-          Files.ReadByte(R, b); Files.ReadByte(R, b2); Files.ReadByte(R, b3);
-          IF (b = 066H) & (b2 = 063H) & (b3 = 070H) THEN
-            NEW(F); NEW(F.block); F.name := name;
-            tt:=PCFGetTable(f);
+      ELSIF b = PaddedFontFileId THEN
+        Files.ReadByte(R, b); (*abstraction*)
+        Files.ReadByte(R, b); (*family*)
+        Files.ReadByte(R, b); (*variant*)
+        NEW(F); NEW(F.block); F.name := name;
+        ReadInt16(R, F.height); ReadInt16(R, F.minX); ReadInt16(R, F.maxX);
+	RdInt16(R, minY); ReadInt16(R, F.maxY); ReadInt16(R, NofRuns);
+        IF minY >= 80H THEN F.minY := minY - 100H ELSE F.minY := minY END;
+        k := 0;
+        WHILE k # NofRuns DO
+          ReadInt16(R, beg); ReadInt16(R, end); i := beg;
 
-            Files.Set(R, f, tt.BDFACCELERATORS.offset+24); 
-                                  (* The following is probably not a correct mapping*)
-            ReadBeInt16(R, i1); ReadBeInt16(R, i2); (*skip minlsb and minrsb*) 
-            ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.minY:=i1+i2; (*minasc + mindsc*)
-            ReadBeInt16(R, i1); F.minY:=i1; (*minwidth*) 
-            ReadBeInt16(R, i1); (*skip mincat*)
-            ReadBeInt16(R, i1); ReadBeInt16(R, i2); (*skip maxlsb and maxrsb*) 
-            ReadBeInt16(R, i1); ReadBeInt16(R, i2); F.maxY:=i1+i2; (*maxasc + maxdsc*)
-            ReadBeInt16(R, i1); F.maxY:=i1; (*maxwidth*) 
-            ReadBeInt16(R, i1); (*skip maxcat*)
-            F.height:=F.maxY; 
+	  WHILE i < end DO
+	    i1 := i DIV 1000H;
+	    i2 := i DIV 40H MOD 40H;
+	    IF F.T1[i1] = 0 THEN
+	      F.T1[i1] := FindSpace(F.block, 256, 4)
+	    END;
+	    SYSTEM.GET(F.T1[i1] + i2 * 4, a);
+	    IF a = 0 THEN
+	      a := 1;
+	      SYSTEM.PUT(F.T1[i1] + i2 * 4, a)
+	    END;
+	    INC(i, 40H)
+	  END;
 
-            Files.Set(R, f, tt.BDFENCODINGS.offset+4);
-            ReadBeInt16(R, fc); 
-            ReadBeInt16(R, lc); 
-            ReadBeInt16(R, fr); 
-            ReadBeInt16(R, lr); 
-            ReadBeInt16(R, df);
-            cc := (lc - fc + 1) * (lr - fr + 1);
-            beg := 0; end := cc-1; i:=beg;
-
-            WHILE i < end DO
-              ReadBeInt16(R, cx);
-              IF cx # 65535 THEN 
-                i1 := cx DIV 1000H;
-                i2 := cx DIV 40H MOD 40H;
-                IF F.T1[i1] = 0 THEN
-                  F.T1[i1] := FindSpace(F.block, 256, 4)
-                END;
-                SYSTEM.GET(F.T1[i1] + i2 * 4, a);
-                IF a = 0 THEN
-                  a := 1;
-                  SYSTEM.PUT(F.T1[i1] + i2 * 4, a)
-                END
-              END;
-              INC(i, 1)  (* 40H *)
-            END;
-
-            F.next := root; root := F
-          ELSE (* unrecognized font file *)
-            F := Default
-          END
-        END
+          INC(k)
+        END;
+        F.next := root; root := F
       END
     ELSE (*font file not available*) F := Default
     END
