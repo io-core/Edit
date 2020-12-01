@@ -116,11 +116,20 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     END
   END SetChangeMark;
 
+  PROCEDURE SetTopMark (F: Frame; on: BOOLEAN);  (*in corner*)
+  BEGIN
+    IF F.H > menuH THEN
+      IF on THEN  Display.CopyPattern(Display.white, Display.top, F.X+4, F.Y+F.H-10, Display.paint)
+      ELSE Display.ReplConst(F.col, F.X+4, F.Y+F.H-10, 8, 8, Display.replace)
+      END
+    END
+  END SetTopMark;
+
   PROCEDURE SetBotMark (F: Frame; on: BOOLEAN);  (*in corner*)
   BEGIN
     IF F.H > menuH THEN
-      IF on THEN  Display.CopyPattern(Display.white, Display.block, F.X+F.W-24, F.Y+F.H-12, Display.paint)
-      ELSE Display.ReplConst(F.col, F.X+F.W-24, F.Y+F.H-12, 8, 8, Display.replace)
+      IF on THEN  Display.CopyPattern(Display.white, Display.bot, F.X+4, F.Y+2, Display.paint)
+      ELSE Display.ReplConst(F.col, F.X+4, F.Y+2, 8, 8, Display.replace)
       END
     END
   END SetBotMark;
@@ -169,6 +178,12 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     F.hasMark := on
   END Mark;
 
+  PROCEDURE amAtTop(F: Frame):BOOLEAN;
+    VAR r: BOOLEAN;
+  BEGIN IF F.org = 0 THEN r := TRUE ELSE r := FALSE END
+  RETURN r
+  END amAtTop;
+
   PROCEDURE Restore* (F: Frame);
     VAR R: Texts.Reader; L, l: Line; curY, botY: INTEGER;
   BEGIN  Display.ReplConst(F.col, F.X, F.Y, F.W, F.H, Display.replace);
@@ -185,7 +200,10 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       L.next := l; L := l; curY := curY - lsp
     END;
     L.next := F.trailer;
-    F.markH := F.org * F.H DIV (F.text.len + 1)
+    F.markH := F.org * F.H DIV (F.text.len + 1);
+    IF L.eot THEN F.atEnd := TRUE ELSE F.atEnd := FALSE END;
+    SetTopMark(F, amAtTop(F));
+    SetBotMark(F, F.atEnd)
   END Restore;
 
   PROCEDURE Suspend* (F: Frame);
@@ -212,9 +230,10 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       DisplayLine(F, l, R, F.X + F.left, curY, 0);
       L.next := l; L := l; curY := curY - lsp
     END;
-    IF L.eot THEN F.atEnd := TRUE END;
+    IF L.eot THEN F.atEnd := TRUE ELSE F.atEnd := FALSE END;
     L.next := F.trailer;
-    F.markH := F.org * F.H DIV (F.text.len + 1)
+    F.markH := F.org * F.H DIV (F.text.len + 1);
+    (* SetBotMark(F, F.atEnd); *)
   END Extend;
 
   PROCEDURE Reduce* (F: Frame; newY: INTEGER);
@@ -225,12 +244,13 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     WHILE (L.next # F.trailer) & (curY >= botY) DO
       L := L.next; curY := curY - lsp
     END;
+    IF L.next = F.trailer THEN F.atEnd := TRUE ELSE F.atEnd := FALSE END;
     L.next := F.trailer;
     IF curY + asr > F.Y THEN
       Display.ReplConst(F.col, F.X + F.left, F.Y, F.W - F.left, curY + asr - F.Y, Display.replace)
     END;
-    F.atEnd := FALSE; (* TODO: Account for shrinking but still at text eof *)
-    F.markH := F.org * F.H DIV (F.text.len + 1); Mark(F, TRUE)
+    F.markH := F.org * F.H DIV (F.text.len + 1); Mark(F, TRUE);
+    (* SetBotMark(F, F.atEnd) *)
   END Reduce;
 
   PROCEDURE Show* (F: Frame; pos: LONGINT);
@@ -239,10 +259,10 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
   BEGIN
     IF F.trailer.next # F.trailer THEN
       Validate(F.text, pos);
-      IF pos < F.org THEN Mark(F, FALSE);
+      IF pos < F.org THEN Mark(F, FALSE); SetTopMark(F, FALSE); SetBotMark(F, FALSE);
         Display.ReplConst(F.col, F.X + F.left, F.Y, F.W - F.left, F.H, Display.replace);
         botY := F.Y; F.Y := F.Y + F.H; F.H := 0;
-        F.org := pos; F.trailer.next := F.trailer; Extend(F, botY); Mark(F, TRUE)
+        F.org := pos; F.trailer.next := F.trailer; Extend(F, botY); Mark(F, TRUE); SetTopMark(F, amAtTop(F)); SetBotMark(F, F.atEnd)
       ELSIF pos > F.org THEN
         org := F.org; L := F.trailer.next; curY := F.Y + F.H - F.top - asr;
         WHILE (L.next # F.trailer) & (org # pos) DO
@@ -264,18 +284,17 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
             NEW(L0); DisplayLine(F, L0, R, F.X + F.left, curY, 0);
             L.next := L0; L := L0; curY := curY - lsp
           END;
-          L.next := F.trailer; UpdateMark(F)
-        ELSE Mark(F, FALSE);
+          IF L.eot THEN F.atEnd := TRUE ELSE F.atEnd := FALSE END;
+          L.next := F.trailer; UpdateMark(F); SetTopMark(F, amAtTop(F)); SetBotMark(F, F.atEnd)
+        ELSE Mark(F, FALSE); SetTopMark(F, FALSE); SetBotMark(F, FALSE);
           Display.ReplConst(F.col, F.X + F.left, F.Y, F.W - F.left, F.H, Display.replace);
           botY := F.Y; F.Y := F.Y + F.H; F.H := 0;
           F.org := pos; F.trailer.next := F.trailer; Extend(F, botY);
-          Mark(F, TRUE)
+          Mark(F, TRUE); SetTopMark(F, amAtTop(F)); SetBotMark(F, F.atEnd)
         END
       END;
-      F.atEnd := FALSE; (*TODO: determine if frame is actually at end of text or not*)
     END ;
-    SetChangeMark(F, F.text.changed);
-    SetBotMark(F, F.atEnd)
+    SetChangeMark(F, F.text.changed)
   END Show;
 
   PROCEDURE LocateLine (F: Frame; y: INTEGER; VAR loc: Location);
@@ -506,7 +525,8 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
           Display.ReplConst(F.col, F.X + F.left, curY - dsr, F.W - F.left, lsp, Display.replace);
           DisplayLine(F, L, R, F.X + F.left, curY, 0);
           org := org + L.len; L := L.next; curY := curY - lsp
-        END
+        END;
+        IF L = F.trailer THEN F.atEnd := TRUE ELSE F.atEnd := FALSE END
       END
     END;
     UpdateMark(F)
@@ -542,6 +562,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
           WHILE (L.next # F.trailer) & (curY >= botY) DO
             L := L.next; curY := curY - lsp
           END;
+          IF L.next = F.trailer THEN F.atEnd:=TRUE ELSE F.atEnd := FALSE END;
           L.next := F.trailer;
           dY := Y0 - Y1;
           IF Y1 > curY + dY THEN
@@ -558,7 +579,6 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
           END
         END
       END;
-      F.atEnd := FALSE; (*TODO: determine if actually pushed end out of the frame *) 
     END;
     UpdateMark(F)
   END Insert;
@@ -605,10 +625,12 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
             DisplayLine(F, l, R, F.X + F.left, curY, 0);
             L.next := l; L := l; curY := curY - lsp
           END;
+          IF L.eot THEN F.atEnd:=TRUE ELSE F.atEnd:=FALSE END;
           L.next := F.trailer
+        ELSE
         END
+      ELSE F.atEnd:=TRUE 
       END;
-      (*TODO: Determine if delete brought end within the frame *)
     END;
     UpdateMark(F)
   END Delete;
@@ -654,6 +676,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       loc: Location; keysum: SET;
       patadr, bpos, pos, lim: LONGINT;
       bx, ex, ox, dx, u, v, w, h: INTEGER;
+      wasBot: BOOLEAN;
 
   BEGIN (*F.hasCar*)
     IF codepoint = ORD(BS) THEN  (*backspace*)
@@ -663,8 +686,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
 	  Texts.OpenReader(R, F.text, F.carloc.pos-charlen);
 	  Texts.Read(R, ch);
         UNTIL (ch < 80X) OR (ch >= 0C0X); (* skip over continuation *)
-        Texts.Delete(F.text, F.carloc.pos - charlen, F.carloc.pos, DelBuf); SetCaret(F, F.carloc.pos - charlen);
-        (*TODO: Determine if backspace brought eot into the frame*)
+        Texts.Delete(F.text, F.carloc.pos - charlen, F.carloc.pos, DelBuf); SetCaret(F, F.carloc.pos - charlen)
       END
     ELSIF codepoint = ORD(3X) THEN (* ctrl-c  copy*)
       IF F.hasSel THEN
@@ -672,12 +694,10 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       END
     ELSIF codepoint = ORD(16X) THEN (*ctrl-v  paste*)
       NEW(buf); Texts.OpenBuf(buf); Texts.Copy(TBuf, buf); Texts.Insert(F.text, F.carloc.pos, buf);
-      SetCaret(F, F.carloc.pos + TBuf.len);
-      F.atEnd := FALSE; (*TODO: check to see if paste actually pushed eot out of the frame *)
+      SetCaret(F, F.carloc.pos + TBuf.len)
     ELSIF codepoint = ORD(18X) THEN (*ctrl-x,  cut*)
       IF F.hasSel THEN
-        NEW(TBuf); Texts.OpenBuf(TBuf); Texts.Delete(F.text, F.selbeg.pos, F.selend.pos, TBuf);
-        (*TODO: Check to see if cut brought eot into the frame*)
+        NEW(TBuf); Texts.OpenBuf(TBuf); Texts.Delete(F.text, F.selbeg.pos, F.selend.pos, TBuf)
       END
     ELSIF codepoint = ORD(1CX) THEN (*f12 - Save*)
       LED(99)
@@ -698,8 +718,10 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     ELSIF (20H <= codepoint) & (codepoint <= 010FFFFH) OR (codepoint = ORD(NL)) OR (codepoint = ORD(TAB)) THEN
       KW.fnt := fnt; KW.col := col; KW.voff := voff; Texts.WriteUnicode(KW, codepoint);
       Texts.Insert(F.text, F.carloc.pos, KW.buf);
+      IF codepoint = ORD(NL) THEN 
+        IF F.carloc.y <= F.bot + dsr + lsp THEN Show(F,F.org+1) END
+      END; 
       SetCaret(F, F.carloc.pos + Texts.UnicodeWidth(codepoint));
-      F.atEnd := FALSE; (*TODO: Check to see if inserting a character pushed eot out of the frame *)
     END
   END Write;
 
@@ -721,7 +743,8 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       Reduce(F, Y + dY);
       IF dY > 0 THEN Display.CopyBlock(F.X, F.Y, F.W, F.H, F.X, Y, 0); F.Y := Y END
     END;
-    IF F.H > 0 THEN Mark(F, TRUE); SetChangeMark(F,  F.text.changed); SetBotMark(F,  F.atEnd) END
+    IF F.H > 0 THEN Mark(F, TRUE); SetChangeMark(F,  F.text.changed); SetBotMark(F,  F.atEnd) END;
+    SetTopMark(F, amAtTop(F));
   END Modify;
 
   PROCEDURE Open* (F: Frame; H: Display.Handler; T: Texts.Text; org: LONGINT;
@@ -745,8 +768,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     IF F.hasCar THEN
       NEW(buf); Texts.OpenBuf(buf);
       Texts.Save(text, beg, end, buf); Texts.Insert(F.text, F.carloc.pos, buf);
-      SetCaret(F, F.carloc.pos + (end - beg));
-      F.atEnd := FALSE; (*Todo: determine if copyover changed eot being in frame or not *)
+      SetCaret(F, F.carloc.pos + (end - beg))
     END
   END CopyOver;
 
@@ -770,7 +792,8 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     ELSIF M.id = delete THEN Delete(F, M.beg, M.end)
     END ;
     SetChangeMark(F,  F.text.changed);
-    SetBotMark(F, F.atEnd)
+    SetBotMark(F, F.atEnd);
+    SetTopMark(F, amAtTop(F));
   END Update;
 
   PROCEDURE Edit* (F: Frame; X, Y: INTEGER; Keys: SET);
@@ -792,7 +815,6 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
           RemoveMarks(F); Oberon.RemoveMarks(F.X, F.Y, F.W, F.H);
           Show(F, pos)
         END;
-        F.atEnd := FALSE; (*TODO: Determine if eot is still in frame *)
       ELSIF Keys = {1} THEN   (*MM*)  keysum := Keys;
         REPEAT Input.Mouse(Keys, X, Y); keysum := keysum + Keys;
           Oberon.DrawMouse(ScrollMarker, X, Y)
@@ -806,7 +828,6 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
           RemoveMarks(F); Oberon.RemoveMarks(F.X, F.Y, F.W, F.H);
           Show(F, pos)
         END;
-        F.atEnd := FALSE; (*TODO: determine if eot is in frame *)
       ELSIF Keys = {0} THEN   (*MR, scroll down*)
         TrackLine(F, X, Y, pos, keysum);
         IF keysum = {0} THEN
@@ -814,7 +835,6 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
           RemoveMarks(F); Oberon.RemoveMarks(F.X, F.Y, F.W, F.H);
           Show(F, F.org*2 - pos - 100)
         END;
-        (*TODO: Determine if scrolling brought eot into frame *)
       END
     ELSE  (*text area*)
       Oberon.DrawMouseArrow(X, Y);
@@ -830,7 +850,6 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
             M.text := text; M.beg := beg; M.end := end;
             Oberon.FocusViewer.handle(Oberon.FocusViewer, M)
           END;
-          (*TODO: Determine if delete or copy brought eot into frame *)
         END
       ELSIF 1 IN Keys THEN  (*MM: call*)
         TrackWord(F, X, Y, pos, keysum);
@@ -850,14 +869,12 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
             Texts.Copy(TBuf, buf); Texts.Insert(F.text, F.carloc.pos, buf);
             SetCaret(F, F.carloc.pos + buf.len)
           END;
-          F.atEnd := FALSE; (*TODO: Determine if copy changes eot in frame *)
         ELSIF keysum = {2, 0} THEN (*ML, MR: copy looks*)
           Oberon.GetSelection(text, beg, end, time);
           IF time >= 0 THEN
             Texts.Attributes(F.text, F.carloc.pos, fnt, col, voff);
             IF fnt # NIL THEN Texts.ChangeLooks(text, beg, end, {0,1,2}, fnt, col, voff) END
-          END;
-          F.atEnd := FALSE; (*TODO: Determine if copying looks changes eot in frame *)
+          END
         END
       END
     END
