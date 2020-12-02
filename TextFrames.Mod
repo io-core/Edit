@@ -720,7 +720,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
           RemoveCaret(F);
           Texts.OpenReader(R, F.text, F.carloc.pos);
           Texts.ReadUnicode(R, nextCodepoint);
-          SetCaret(F, F.carloc.pos + Texts.UnicodeWidth(codepoint));
+          SetCaret(F, F.carloc.pos + Texts.UnicodeWidth(nextCodepoint));
       ELSIF  codepoint = -5  THEN (*pu*)    
       ELSIF  codepoint = -6  THEN (*pd*)    
       ELSIF  codepoint = -7  THEN (*lcmd*)  
