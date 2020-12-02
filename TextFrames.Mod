@@ -170,6 +170,17 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
     END
   END Validate;
 
+  PROCEDURE previousLine (T: Texts.Text; VAR pos: LONGINT);
+    VAR R: Texts.Reader;
+  BEGIN
+    IF pos > T.len THEN pos := T.len
+    ELSIF pos > 1 THEN
+      DEC(pos); DEC(pos); Texts.OpenReader(R, T, pos);
+      REPEAT Texts.ReadUnicode(R, nextCodepoint); DEC(pos); Texts.OpenReader(R, T, pos); UNTIL (pos = 0) OR (nextCodepoint = ORD(CR)) OR (nextCodepoint = ORD(NL))
+    ELSE pos := 0
+    END
+  END previousLine;
+
   PROCEDURE Mark* (F: Frame; on: BOOLEAN);
   BEGIN
     IF (F.H > 0) & (F.left >= barW) & ((F.hasMark & ~on) OR (~F.hasMark & on)) THEN
@@ -683,10 +694,41 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       IF F.carloc.pos > F.org THEN
         charlen := 0;
         REPEAT INC(charlen);
-	  Texts.OpenReader(R, F.text, F.carloc.pos-charlen);
-	  Texts.Read(R, ch);
+          Texts.OpenReader(R, F.text, F.carloc.pos-charlen);
+          Texts.Read(R, ch);
         UNTIL (ch < 80X) OR (ch >= 0C0X); (* skip over continuation *)
-        Texts.Delete(F.text, F.carloc.pos - charlen, F.carloc.pos, DelBuf); SetCaret(F, F.carloc.pos - charlen)
+        Texts.Delete(F.text, F.carloc.pos - charlen, F.carloc.pos, DelBuf);
+        IF (F.org # 0) & (F.carloc.y >= F.top - dsr ) THEN
+          pos:=F.org; previousLine(F.text,pos); Show(F,pos)
+        END;
+        SetCaret(F, F.carloc.pos - charlen)
+      END
+    ELSIF codepoint < 0 THEN (*cursor keys*)
+      IF     codepoint = -1  THEN (*up*)     
+      ELSIF  codepoint = -2  THEN (*left*)  
+        IF F.carloc.pos > F.org THEN
+          RemoveCaret(F);
+          charlen := 0;
+          REPEAT INC(charlen);
+            Texts.OpenReader(R, F.text, F.carloc.pos-charlen);
+            Texts.Read(R, ch);
+          UNTIL (ch < 80X) OR (ch >= 0C0X); (* skip over continuation *)
+          SetCaret(F, F.carloc.pos - charlen)
+        END
+      ELSIF  codepoint = -3  THEN (*down*)  
+      ELSIF  codepoint = -4  THEN (*right*) 
+          RemoveCaret(F);
+          Texts.OpenReader(R, F.text, F.carloc.pos);
+          Texts.ReadUnicode(R, nextCodepoint);
+          SetCaret(F, F.carloc.pos + Texts.UnicodeWidth(codepoint));
+      ELSIF  codepoint = -5  THEN (*pu*)    
+      ELSIF  codepoint = -6  THEN (*pd*)    
+      ELSIF  codepoint = -7  THEN (*lcmd*)  
+      ELSIF  codepoint = -8  THEN (*rcmd*)  
+      ELSIF  codepoint = -9  THEN (*ins*)   
+      ELSIF  codepoint = -10 THEN (*del*)   
+      ELSIF  codepoint = -11 THEN (*home*)  
+      ELSIF  codepoint = -12 THEN (*end*)   
       END
     ELSIF codepoint = ORD(3X) THEN (* ctrl-c  copy*)
       IF F.hasSel THEN
