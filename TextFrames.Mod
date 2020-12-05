@@ -705,6 +705,11 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
       END
     ELSIF codepoint < 0 THEN (*cursor keys*)
       IF     codepoint = -1  THEN (*up*)     
+        IF F.carloc.pos > F.org THEN
+          RemoveCaret(F);
+          LocateChar(F,F.carloc.x,F.carloc.y+F.lsp,loc);
+          SetCaret(F, loc.pos )
+        END
       ELSIF  codepoint = -2  THEN (*left*)  
         IF F.carloc.pos > F.org THEN
           RemoveCaret(F);
@@ -716,6 +721,11 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
           SetCaret(F, F.carloc.pos - charlen)
         END
       ELSIF  codepoint = -3  THEN (*down*)  
+        IF F.carloc.pos > F.org THEN
+          RemoveCaret(F);
+          LocateChar(F,F.carloc.x,F.carloc.y-F.lsp,loc);
+          SetCaret(F, loc.pos )
+        END
       ELSIF  codepoint = -4  THEN (*right*) 
           RemoveCaret(F);
           Texts.OpenReader(R, F.text, F.carloc.pos);
