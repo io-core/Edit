@@ -188,7 +188,7 @@ BEGIN
   i1 := codepoint DIV 1000H;
   i2 := codepoint DIV 40H MOD 40H;
   i3 := codepoint MOD 40H;
-  IF fnt # NIL THEN pa := fnt.T1[i1] ELSE pa := 0 END;
+  pa := fnt.T1[i1];
   IF pa # 0 THEN
     SYSTEM.GET(pa + i2 * 4, pa);
     IF pa = 1 THEN
