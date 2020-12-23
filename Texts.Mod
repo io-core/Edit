@@ -119,7 +119,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
       IF tag = TextTag THEN Load(R, T)
       ELSE (*Ascii file*)
         len := Files.Length(f); Q := Trailer();
-        NEW(q); q.fnt := Fonts.This("DVSansMono16.Scn.Fnt"); (*Fonts.Default*); q.col := 1; q.voff := 0; q.f := f; q.off := 0; q.len := len;
+        NEW(q); q.fnt := Fonts.This("DVSans16.Scn.Fnt"); (*Fonts.Default*); q.col := 1; q.voff := 0; q.f := f; q.off := 0; q.len := len;
         Q.next := q; q.prev := Q; q.next := Q; Q.prev := q; T.trailer := Q; T.len := len
       END
     ELSE (*create new text*)
