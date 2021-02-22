@@ -1,7 +1,15 @@
+(* begin-module-short-description
+extracts a subset of glyphs into a smaller font file.
+end-module-short-description *)
+
 MODULE FontSubsetBuilder;
   IMPORT Files, Texts, Oberon;
 
   CONST FontFileId = 0DBH;
+
+  TYPE
+
+  VAR
 
   PROCEDURE ReadInt16(VAR R: Files.Rider; VAR v: INTEGER);
     VAR b0, b1: BYTE;
