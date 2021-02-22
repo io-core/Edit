@@ -17,6 +17,10 @@ Edit.Open example.txt
 ### _Modules in this package:_
 end-package-description *)
 
+(* begin-module-short-description
+provides text editing functionaltiy in Oberon.
+end-module-short-description *)
+
 (* begin-module-use-description
 Module Edit provides document editing capability.
 
@@ -24,10 +28,14 @@ end-module-use-description *)
 MODULE Edit; (*JG 2.11.90 / NW 28.11.2015*)
   IMPORT Files, Fonts, Texts, Display, Viewers, Oberon, MenuViewers, TextFrames;
 
-  CONST CR = 0DX; maxlen = 32;
+  CONST 
+    CR = 0DX; maxlen = 32;
     StandardMenu = "System.Close System.Copy System.Grow Edit.Search Edit.Store";
 
-  VAR W: Texts.Writer;
+  TYPE
+
+  VAR
+    W: Texts.Writer;
     time: LONGINT;
     M: INTEGER;
     pat: ARRAY maxlen OF CHAR;
