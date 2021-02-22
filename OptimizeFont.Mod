@@ -1,7 +1,15 @@
+(* begin-module-short-description
+optimizes a font file.
+end-module-short-description *)
+
 MODULE OptimizeFont;
   IMPORT Files, Texts, Oberon;
 
   CONST FontFileId = 0DBH;
+
+  TYPE
+
+  VAR
 
   PROCEDURE ReadInt16(VAR R: Files.Rider; VAR v: INTEGER);
     VAR b0, b1: BYTE;
