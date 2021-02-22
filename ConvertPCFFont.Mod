@@ -1,3 +1,7 @@
+(* begin-module-short-description
+converts a PCF font to Oberon format.
+end-module-short-description *)
+
 MODULE ConvertPCFFont;
   (* Based on https://github.com/io-core/Edit/blob/795889b215dd831f44369f0a6edc0f8ec6caf05c/Fonts.Mod *)
   (* See also https://fontforge.org/docs/techref/pcf-format.html *)
@@ -5,6 +9,10 @@ MODULE ConvertPCFFont;
   IMPORT Files, Texts, Oberon;
 
   CONST PcfFileId = 70636601H;
+
+  TYPE
+
+  VAR
 
   PROCEDURE ReadInt16(VAR R: Files.Rider; bigEndian: BOOLEAN; VAR v: INTEGER);
     VAR b0, b1: BYTE;
