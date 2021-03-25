@@ -1,3 +1,7 @@
+(* begin-module-short-description
+implements font file reading and  glyph cacheing.
+end-module-short-description *)
+
 MODULE Fonts; (*JG 18.11.90; PDR 8.6.12; NW 18.1.2019 CP 2018,2019,2020*)
               (*MS 1.2019 adapted for Unicode*)
 

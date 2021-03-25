@@ -1,3 +1,7 @@
+(* begin-module-short-description
+produces an upscaled font from a smaller font.
+end-module-short-description *)
+
 MODULE GrowFont;
   IMPORT SYSTEM, Files, Texts, Oberon;
 

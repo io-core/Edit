@@ -1,3 +1,7 @@
+(* begin-module-short-description
+manages the interaction with frames of text in Oberon.
+end-module-short-description *)
+
 (* begin-module-use-description
 Module TextFrames implements the operations on text frames in Oberon.
 
