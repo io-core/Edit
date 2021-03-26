@@ -7,7 +7,7 @@ Module MIME registers file or stream types and provides handlers.
 
 end-module-use-description *)
 MODULE MIME;
-  IMPORT
+  IMPORT SYSTEM;
 
   CONST
 
@@ -19,10 +19,10 @@ MODULE MIME;
 ---
 **register** makes the mime type, its description, and its filename extension visible to the system.
   end-procedure-description *)
-  PROCEDURE register(VAR a, b, c: ARRAY OF CHAR);
+  PROCEDURE register( a, b, c: ARRAY OF CHAR);
   BEGIN 
 
-  END register.
+  END register;
 
 
 BEGIN
