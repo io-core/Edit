@@ -12,6 +12,11 @@ MODULE MIME;
   CONST
 
   TYPE
+    Type* = POINTER TO TypeDesc;
+    TypeDesc* = RECORD
+        ext*: ARRAY 32 OF CHAR;
+        next: Type
+      END;
 
   VAR
 

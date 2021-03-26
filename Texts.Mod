@@ -7,7 +7,7 @@ Module Texts defines the 'text' abstract data type used pervasively in the Obero
 
 end-module-use-description *)
 MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10.1.2019*)
-  IMPORT Files, Fonts;
+  IMPORT Files, Fonts, MIME;
 
   CONST (*scanner symbol classes*)
     Inval* = 0;         (*invalid symbol*)
@@ -37,7 +37,8 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
     Notifier* = PROCEDURE (T: Text; op: INTEGER; beg, end: LONGINT);
     Consumer* = PROCEDURE (T: Text; beg, end: LONGINT);
     TextDesc* = RECORD
-      len*,sent*,cap*,mime*: LONGINT;
+      len*,sent*,cap*: LONGINT;
+      mime*: MIME.Type; (* ptr to interned mime type string *)
       changed*: BOOLEAN;
       notify*: Notifier;
       out*: Consumer;
