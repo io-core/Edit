@@ -966,6 +966,7 @@ MODULE TextFrames; (*JG 8.10.90 / NW 10.5.2013 / 11.2.2017*)
   PROCEDURE Menu (name, commands: ARRAY OF CHAR): Texts.Text;
     VAR T: Texts.Text;
   BEGIN NEW(T); T.notify := NotifyDisplay;  Texts.Open(T, "");
+    Texts.SetFont(W, Fonts.This("Oberon16.Scn.Fnt"));
     Texts.WriteString(W, name); Texts.WriteString(W, " | ");  Texts.WriteString(W, commands);
     Texts.Append(T, W.buf); RETURN T
   END Menu;

@@ -34,14 +34,18 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
     END;
 
     Text* = POINTER TO TextDesc;
+    Buffer* = POINTER TO BufDesc;
+
+    Processor* = PROCEDURE (B: Buffer): Buffer;
+(*    Feeder* = PROCEDURE(T: Text; R: Reader); *)
     Notifier* = PROCEDURE (T: Text; op: INTEGER; beg, end: LONGINT);
-    Consumer* = PROCEDURE (T: Text; beg, end: LONGINT);
+
     TextDesc* = RECORD
-      len*,sent*,cap*: LONGINT;
-      mime*: MIME.Type; (* ptr to interned mime type string *)
+      len*,sent*,lcap*,bcap*: LONGINT;
+      mime*: MIME.Type; 
       changed*: BOOLEAN;
       notify*: Notifier;
-      out*: Consumer;
+      aproc*: Processor;
       trailer: Piece;
       pce: Piece;  (*cache*)
       org: LONGINT (*cache*)
@@ -51,6 +55,7 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
       eot*: BOOLEAN;
       fnt*: Fonts.Font;
       col*, voff*: INTEGER;
+(*      more*: Feeder; *)
       ref: Piece;
       org: LONGINT;
       off: LONGINT;
@@ -68,7 +73,6 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
       s*: ARRAY 32 OF CHAR
     END;
 
-    Buffer* = POINTER TO BufDesc;
     BufDesc* = RECORD
       len*: LONGINT;
       header, last: Piece
@@ -79,7 +83,12 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
       fnt*: Fonts.Font;
       col*, voff*: INTEGER;
       rider: Files.Rider
-    END;     
+    END;
+
+    Stream* = RECORD
+      in*: Reader;
+      out*: Writer
+    END;
 
   VAR TrailerFile: Files.File;
 
@@ -126,13 +135,13 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
       IF tag = TextTag THEN Load(R, T)
       ELSE (*Ascii file*)
         len := Files.Length(f); Q := Trailer();
-        NEW(q); q.fnt := Fonts.This("DVSans16.Scn.Fnt"); (*Fonts.Default*); q.col := 1; q.voff := 0; q.f := f; q.off := 0; q.len := len;
+        NEW(q); q.fnt := Fonts.This("DVSansMono16.Scn.Fnt"); (*Fonts.Default*); q.col := 1; q.voff := 0; q.f := f; q.off := 0; q.len := len;
         Q.next := q; q.prev := Q; q.next := Q; Q.prev := q; T.trailer := Q; T.len := len
       END
     ELSE (*create new text*)
       Q := Trailer(); Q.next := Q; Q.prev := Q; T.trailer := Q; T.len := 0
     END ;
-    T.changed := FALSE; T.org := -1; T.pce := T.trailer (*init cache*)
+    T.changed := FALSE; T.org := -1; T.pce := T.trailer; (*init cache*) T.lcap := -1; T.bcap := -1
   END Open;
 
   PROCEDURE Store* (VAR W: Files.Rider; T: Text);
@@ -255,8 +264,23 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
     IF T.notify # NIL THEN  T.notify(T, insert, pos, end) END
   END Insert;
 
+  PROCEDURE FromBuffer* (T: Text; B: Buffer);
+    VAR (* f: Files.File; R: Files.Rider; *) Q, q: Piece; 
+      (* tag: CHAR; len: LONGINT; *)
+  BEGIN (* f := NIL *)
+    (*create new text*)
+    Q := Trailer(); Q.next := Q; Q.prev := Q; T.trailer := Q; T.len := 0;
+    T.changed := FALSE; T.org := -1; T.pce := T.trailer; (*init cache*) T.lcap := -1; T.bcap := -1;
+    Insert(T,0,B)
+  END FromBuffer;
+
   PROCEDURE Append* (T: Text; B: Buffer);
-  BEGIN Insert(T, T.len, B)
+  BEGIN
+    IF T.aproc # NIL THEN 
+      Insert(T, T.len, T.aproc(B)) 
+    ELSE 
+      Insert(T, T.len, B)
+    END
   END Append;
 
   PROCEDURE Delete* (T: Text; beg, end: LONGINT; B: Buffer);
@@ -362,11 +386,20 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
   BEGIN RETURN R.org + R.off
   END Pos;  
 
+
+
   (* ------------------ Access: Scanners (NW) ------------------------- *)
 
   PROCEDURE OpenScanner* (VAR S: Scanner; T: Text; pos: LONGINT);
   BEGIN OpenReader(S, T, pos); S.line := 0; S.nextCh := " "
   END OpenScanner;
+
+  PROCEDURE ScannerFromReader* (VAR S: Scanner; R: Reader);
+  BEGIN 
+    S.ref := R.ref; S.org := R.org; S.off := R.off; 
+    Files.Set(S.rider, S.ref.f, S.ref.off + S.off); S.eot := FALSE;
+    S.line := 0; S.nextCh := " "
+  END ScannerFromReader;
 
   (*floating point formats:
     x = 1.m * 2^(e-127)   bit 0: sign, bits 1- 8: e, bits  9-31: m
@@ -602,6 +635,23 @@ MODULE Texts; (*JG 21.11.90 / NW 11.7.90 / 24.12.95 / 22.11.10 / 18.11.2014 / 10
     WritePair(W, ":", d DIV 40H MOD 40H);  (*min*)
     WritePair(W, ":", d MOD 40H)  (*sec*)
   END WriteClock;
+
+  PROCEDURE Pipe*(VAR I: Text; VAR O: Text; P: Processor );
+  BEGIN
+  END Pipe;
+
+  PROCEDURE OpenStream* (VAR S: Stream; T: Text; pos: LONGINT);
+  BEGIN
+    OpenReader(S.in,T,pos);
+    OpenWriter(S.out)
+  END OpenStream;
+
+  PROCEDURE UpdateStream* (VAR S: Stream);
+  BEGIN
+    
+    
+  END UpdateStream;
+
 
 BEGIN TrailerFile := Files.New("")
 END Texts.
